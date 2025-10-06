@@ -1,0 +1,466 @@
+---
+title: "Group Prosociality with OT"
+output: word_document
+date: "2022-09-19"
+---
+
+```{r setup, include=FALSE}
+#knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r Install your Packages}
+#install.packages("rstudioapi")
+#install.packages("openxlsx")
+#install.packages("dplyr")
+#install.packages("tidyr")
+#install.packages("tidyverse")
+#install.packages("pscl")
+#install.packages("multcomp")
+#install.packages("lsmeans")
+#install.packages("fitdistrplus")
+#install.packages("glmmTMB")
+#install.packages("overdisp")
+#install.packages("sjPlot")
+#install.packages("Rmisc")
+#install.packages("rstatix")
+#install.packages("MASS")
+```
+
+```{r}
+library(rstudioapi)
+library(openxlsx)
+library(readxl)
+library(dplyr)
+library(tidyr)
+library(tidyverse)
+library(Rcpp)
+library(lubridate)
+library(plyr)
+library(pscl)
+library(multcomp)
+library(emmeans)
+library(lsmeans)
+library(fitdistrplus)
+library(lme4)
+library(car)
+library(glmmTMB)
+library(emmeans)
+library(overdisp)
+library(sjPlot)
+library(Rmisc)
+library(rstatix)
+library(MASS)
+library(gridExtra)
+```
+
+
+```{r}
+#library(rlang)
+#current_path <- getActiveDocumentContext()$path 
+#setwd(dirname(current_path))
+#print(getwd())
+
+#file_list  <- list.files(pattern = '\\.csv')
+
+#raw_datasets <- lapply(file_list, read.csv, header = TRUE)
+
+#summary.data <- do.call(rbind , raw_datasets)
+#summary.data <- subset(summary.data, whale != "whale")
+#head(summary.data)
+
+#write.xlsx(summary.data, file = "Beluga_Master_File.xlsx", sheetName = "Summary", append = FALSE)
+```
+
+
+```{r Read the Data File}
+beluga.data <- read_excel("C:/Users/matth/OneDrive/Documents/Georgia State/Research Projects/Beluga Risk Preferences/Data Collection/Phase 2 Risk versus Safe/Beluga_Master_File.xlsx")
+
+beluga.data$whale <- as.factor(beluga.data$whale)
+beluga.data$session <- as.factor(beluga.data$session)
+#beluga.data$date
+beluga.data$time <- as.factor(beluga.data$time)
+#beluga.data$forced_b4 <- as.factor(beluga.data$forced_b4)
+beluga.data$trial <- as.numeric(beluga.data$trial)
+beluga.data$choice <- as.factor(beluga.data$choice)
+beluga.data$value <- as.factor(beluga.data$value)
+beluga.data$side <- as.factor(beluga.data$side)
+beluga.data$reward_before <- as.factor(beluga.data$reward_before)
+beluga.data$terminated <- as.factor(beluga.data$terminated)
+
+levels(beluga.data$whale)
+levels(beluga.data$session)
+levels(beluga.data$time)
+levels(beluga.data$choice)
+levels(beluga.data$value)
+levels(beluga.data$side)
+```
+
+
+```{r Conduct Exact Binomial Tests to see if preferences overall were significantly different than 0.50}
+stats.test <- data.frame(whale = c("Maple", "Qinu", "Shila", "Whisper"),
+                                risk = c(table(beluga.data$whale, beluga.data$choice)[,1]),
+                                safe = c(table(beluga.data$whale, beluga.data$choice)[,3]),
+                                total = c(144))
+stats.test %>%
+  group_by(whale) %>%
+  do(tidy(binom.test(.$risk, .$total, p = 0.5, alternative = "two.sided", conf.level = 0.95)))
+```
+```{r Binomial Tests for final 2 sessions}
+qinu <- subset(beluga.data, whale == "Qinu")
+qinu$total <- 26
+qinu_last_2 <- subset(qinu, session == 11 | session == 10)
+maple <- subset(beluga.data, whale == "Maple")
+maple$total <- 24
+maple_last_2 <- subset(maple, session == 15 | session == 14)
+shila <- subset(beluga.data, whale == "Shila")
+shila$total <-  24
+shila_last_2 <- subset(shila, session == 15 | session == 14)
+whisper <- subset(beluga.data, whale == "Whisper")
+whisper$total <-  24
+whisper_last_2 <- subset(whisper, session == 12 | session == 13)
+
+last_2 <- rbind(qinu_last_2, maple_last_2, shila_last_2, whisper_last_2)
+
+stats.test.qinu <- data.frame(risk = c(table(qinu_last_2$whale, qinu_last_2$choice)[,1]),
+                              safe = c(table(qinu_last_2$whale, qinu_last_2$choice)[,3]),
+                              total = 26)
+
+stats.test.qinu <- stats.test.qinu[2,]
+
+stats.test.maple <- data.frame(risk = c(table(maple_last_2$whale, maple_last_2$choice)[,1]),
+                              safe = c(table(maple_last_2$whale, maple_last_2$choice)[,3]),
+                              total = 24)
+
+stats.test.maple <- stats.test.maple[1,]
+
+stats.test.shila <- data.frame(risk = c(table(shila_last_2$whale, shila_last_2$choice)[,1]),
+                              safe = c(table(shila_last_2$whale, shila_last_2$choice)[,3]),
+                              total = 24)
+
+stats.test.shila <- stats.test.shila[3,]
+
+stats.test.whisper <- data.frame(risk = c(table(whisper_last_2$whale, whisper_last_2$choice)[,1]),
+                              safe = c(table(whisper_last_2$whale, whisper_last_2$choice)[,3]),
+                              total = 24)
+
+stats.test.whisper <- stats.test.whisper[4,]
+
+
+
+binom.test(stats.test.qinu$risk, stats.test.qinu$total, p = 0.5, alternative = "two.sided", conf.level = 0.95)
+binom.test(stats.test.maple$risk, stats.test.maple$total, p = 0.5, alternative = "two.sided", conf.level = 0.95)
+binom.test(stats.test.shila$risk, stats.test.shila$total, p = 0.5, alternative = "two.sided", conf.level = 0.95)
+binom.test(stats.test.whisper$risk, stats.test.whisper$total, p = 0.5, alternative = "two.sided", conf.level = 0.95)
+
+```
+
+```{r Now check their first two sessions}
+first_2_df <- subset(beluga.data, session == 1 | session == 2)
+
+first_2_df$total[first_2_df$whale == "Maple"]   <- 21
+first_2_df$total[first_2_df$whale == "Qinu"]    <- 25
+first_2_df$total[first_2_df$whale == "Whisper"] <- 20
+first_2_df$total[first_2_df$whale == "Shila"]   <- 16
+
+first_2_qinu <- subset(first_2_df, whale == "Qinu")
+first_2_maple <- subset(first_2_df, whale == "Maple")
+first_2_shila <- subset(first_2_df, whale == "Shila")
+first_2_whisper <- subset(first_2_df, whale == "Whisper")
+
+rm(first_2_df)
+
+
+stats.test.qinu <- data.frame(risk = c(table(first_2_qinu$whale, first_2_qinu$choice)[,1]),
+                              safe = c(table(first_2_qinu$whale, first_2_qinu$choice)[,3]),
+                              total = 25)
+
+stats.test.qinu <- stats.test.qinu[2,]
+
+stats.test.maple <- data.frame(risk = c(table(first_2_maple$whale, first_2_maple$choice)[,1]),
+                              safe = c(table(first_2_maple$whale, first_2_maple$choice)[,3]),
+                              total = 21)
+
+stats.test.maple <- stats.test.maple[1,]
+
+stats.test.shila <- data.frame(risk = c(table(first_2_shila$whale, first_2_shila$choice)[,1]),
+                              safe = c(table(first_2_shila$whale, first_2_shila$choice)[,3]),
+                              total = 16)
+
+stats.test.shila <- stats.test.shila[3,]
+
+stats.test.whisper <- data.frame(risk = c(table(first_2_whisper$whale, first_2_whisper$choice)[,1]),
+                              safe = c(table(first_2_whisper$whale, first_2_whisper$choice)[,3]),
+                              total = 20)
+
+stats.test.whisper <- stats.test.whisper[4,]
+
+
+
+binom.test(stats.test.qinu$risk, stats.test.qinu$total, p = 0.5, alternative = "two.sided", conf.level = 0.95)
+binom.test(stats.test.maple$risk, stats.test.maple$total, p = 0.5, alternative = "two.sided", conf.level = 0.95)
+binom.test(stats.test.shila$risk, stats.test.shila$total, p = 0.5, alternative = "two.sided", conf.level = 0.95)
+binom.test(stats.test.whisper$risk, stats.test.whisper$total, p = 0.5, alternative = "two.sided", conf.level = 0.95)
+```
+
+
+```{r Get Descriptives of Each Whale's Choices}
+# Get the Descriptives
+nrow(subset(beluga.data, choice == "safe"))
+nrow(subset(beluga.data, choice == "risk"))
+nrow(subset(beluga.data, value == 0))
+nrow(subset(beluga.data, value == 8))
+
+# Get the Descriptives of each Whale
+maple <- subset(beluga.data, whale == "Maple")
+nrow(subset(maple, choice == "safe"))
+nrow(subset(maple, choice == "risk"))
+nrow(subset(maple, value == 0))
+nrow(subset(maple, value == 8))
+
+qinu <- subset(beluga.data, whale == "Qinu")
+nrow(subset(qinu, choice == "safe"))
+nrow(subset(qinu, choice == "risk"))
+nrow(subset(qinu, value == 0))
+nrow(subset(qinu, value == 8))
+
+shila <- subset(beluga.data, whale == "Shila")
+nrow(subset(shila, choice == "safe"))
+nrow(subset(shila, choice == "risk"))
+nrow(subset(shila, value == 0))
+nrow(subset(shila, value == 8))
+
+whisper <- subset(beluga.data, whale == "Whisper")
+nrow(subset(whisper, choice == "safe"))
+nrow(subset(whisper, choice == "risk"))
+nrow(subset(whisper, value == 0))
+nrow(subset(whisper, value == 8))
+```
+Number of Safe Choices: 243*
+Number of Risky Choices: 328*
+
+Number of Risky = 8: 159
+Number of Risky = 0: 159
+
+Maple_________________________
+Number of Safe Choices: 108
+Number of Risky Choices: 30
+Number of Risky = 8: 15
+Number of Risky = 0: 15
+
+Qinu__________________________
+Number of Safe Choices: 96
+Number of Risky Choices: 49
+
+Number of Risky = 8: 26
+Number of Risky = 0: 23
+
+Shila_________________________
+Number of Safe Choices: 15
+Number of Risky Choices: 129
+
+Number of Risky = 8: 65
+Number of Risky = 0: 64
+
+Whisper_________________________
+Number of Safe Choices: 22
+Number of Risky Choices: 122
+
+Number of Risky = 8: 62
+Number of Risky = 0: 60
+
+```{r Calculate Preference per Session}
+# Make Risky option a 1 and Safe option a 0
+beluga.data$risk_binary <- ifelse(beluga.data$choice == "risk", 1, ifelse(beluga.data$choice == "safe", 0, -1))
+
+# Remove all the times where whale switched choices
+beluga.data <- subset(beluga.data, risk_binary != -1)
+
+by_session <- beluga.data %>%
+  group_by(whale, session) %>%
+  mutate(risk_sum = sum(risk_binary)) %>%
+  mutate(nrow = length(whale)) %>%
+  mutate(risk_preference = risk_sum/nrow)
+
+by_session$risk_preference <- as.numeric(by_session$risk_preference)
+```
+
+
+```{r Visualize Preferences}
+beluga.visual <- summarySE(by_session, measurevar="risk_preference", groupvars=c("whale", "session"))
+beluga.visual$session <- as.numeric(beluga.visual$session)
+beluga.visual$risk_sum <- beluga.visual$N * beluga.visual$risk_preference
+beluga.visual$safe_sum <- beluga.visual$N - beluga.visual$risk_sum
+
+beluga.visual$terminated <- ifelse(
+  (beluga.visual$whale == 'Shila' & beluga.visual$session == 8) |
+  (beluga.visual$whale == 'Whisper' & beluga.visual$session == 3),
+  1, 
+  0
+)
+
+ggplot(beluga.visual, aes(x = session, y = risk_preference, group = whale, color = whale, fill = whale, shape = whale)) +
+                    geom_point(size = 4, alpha = 0.7, position = position_dodge(width = 0.3)) +
+                    geom_line(size = 1.2, position = position_dodge(width = 0.3)) +
+                    geom_hline(yintercept = 0.5, size = 0.8, linetype = "longdash", color = "grey20") +
+                    labs(x = "Testing Day", y = "Proportion of Risk Selections") +
+                    theme_bw() +
+                    scale_x_continuous(breaks = c(1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20)) +
+                    scale_y_continuous(breaks = c(0.00, 0.10, 0.20, 0.30, 0.40, 0.50, 0.60, 0.70, 0.80, 0.90, 1.00, 1.15)) +
+                    scale_shape_manual(values = c(21, 22, 23, 24)) +
+                    geom_text(data = subset(beluga.visual, terminated == 1),
+                                aes(label = "*"),
+                                vjust = -0.1,
+                                size = 8,
+                                color = "black") +
+                    guides(color = guide_legend(reverse = TRUE),
+                           fill = guide_legend(reverse = TRUE),
+                           shape = guide_legend(reverse = TRUE)) +
+                    theme(panel.grid.minor.y = element_blank(),
+                          panel.grid.major.x = element_blank(),
+                          panel.grid.minor.x = element_blank(),
+                          axis.text.x = element_text(size = 20, angle = 0, vjust = 0.5, hjust=0.5),
+                          axis.text = element_text(size = 15), 
+                          axis.title = element_text(size = 28),
+                          legend.title = element_blank(),
+                          legend.text = element_text(size = 15),
+                          legend.key.height = unit(5, "cm"))
+
+
+
+
+ggsave("Session_Level_Proportions.png", height = 8, width = 12, units = "in")
+
+    ```
+
+```{r GLMM predicting selection}
+head(beluga.data)
+
+
+simple_model1 <- lm(as.numeric(risk_binary) ~ reward_before + trial + time, data = beluga.data)
+
+summary(simple_model1)
+
+vif(simple_model1)
+```
+
+
+```{r GLMM predicting selection}
+beluga.data$reward_before <- relevel(beluga.data$reward_before, ref = "4")
+
+
+Model_1 <- glmer(risk_binary ~  reward_before*time + (1 | whale),
+                              family = binomial(link='logit'), 
+                              data = beluga.data,
+                              control = glmerControl(optimizer = "bobyqa", optCtrl=list(maxfun = 10000)))
+
+summary(Model_1)
+
+Anova(Model_1, type = 3)
+
+tab_model(Model_1,
+          show.est = TRUE, show.ci = 0.95,
+          show.p = TRUE, p.style = "numeric",
+          show.se = TRUE, show.r2 = TRUE,
+          show.zeroinf = FALSE,
+          show.re.var = FALSE, show.icc = FALSE,
+          title = "Logistic Regression Predicting the Likelihood of Running after a Pull")
+```
+
+
+```{r GLMM predicting selection for only Qinu}
+only.qinu <- subset(beluga.data, whale == "Qinu")
+
+qinu_choice  <- glm(risk_binary ~ reward_before*time, data = only.qinu, family = binomial)
+
+summary(qinu_choice)
+
+```
+
+```{r Re-run and only look at the reward before. Remove trials in which safe was chosen previously}
+
+model.2.data <- subset(beluga.data, reward_before != "4")
+
+Model_2 <- glmer(risk_binary ~  reward_before + (1|whale),
+                              family = binomial(link='logit'), 
+                              data = model.2.data,
+                              control = glmerControl(optimizer = "bobyqa", optCtrl=list(maxfun = 10000)))
+summary(Model_2)
+
+Anova(Model_2, type = 3)
+
+tab_model(Model_2,
+          show.est = TRUE, show.ci = 0.95,
+          show.p = TRUE, p.style = "numeric",
+          show.se = TRUE, show.r2 = TRUE,
+          show.zeroinf = FALSE,
+          show.re.var = FALSE, show.icc = FALSE,
+          title = "Logistic Regression Predicting the Likelihood of Running after a Pull")
+```
+
+
+```{r}
+time.data <- summarySE(by_session, measurevar="risk_preference", groupvars=c("whale", "time"))
+
+ggplot(time.data)
+
+time_graph <- ggplot(time.data, aes(x = factor(whale), 
+                                  y = risk_preference, 
+                                  fill = time, 
+                                  ymin = risk_preference - ci, 
+                                  ymax = risk_preference + ci)) +
+                     geom_bar(stat="identity", alpha=0.7, position = position_dodge(), color = "black") +
+                     geom_errorbar(position = position_dodge(0.9),
+                                   width=0.4, colour="black", alpha=0.9, size=1.0) +
+                     labs(x = "Subject", y = "Proportion of Risk Selections") +
+                      scale_fill_manual(values = c("AM" = "#69b3a2", "PM" = "#404040")) +
+                     #scale_y_continuous(breaks=seq(0,70,10)) +
+                     theme_bw() +
+                    theme(legend.position = c(0.08, 0.9),
+                          panel.grid.major.x = element_blank(),
+                          panel.grid.minor.x = element_blank(),
+                          legend.title = element_blank(),
+                          legend.text = element_text(size = 15),
+                          axis.title.y = element_text(size = 20),
+                          axis.text.y = element_text(size = 12),
+                          axis.title.x = element_text(size = 20),
+                          axis.text.x = element_text(size = 12))
+
+time_graph
+
+table(qinu$time)
+table(maple$time)
+table(shila$time)
+
+ggsave("Selections_by_Time_Graph.png", height = 6, width = 10, units = "in")
+
+
+```
+
+
+```{r}
+choice.before.data <- summarySE(by_session, measurevar="risk_preference", groupvars=c("whale", "reward_before"))
+choice.before.data <- choice.before.data[!is.na(choice.before.data$reward_before), ]
+
+head(choice.before.data)
+
+choice.before.data.subset <- subset(choice.before.data, reward_before != 4)
+
+prev_choice_graph <- ggplot(choice.before.data.subset, aes(x = factor(reward_before), 
+                                  y = risk_preference, 
+                                  fill = whale, 
+                                  ymin = risk_preference - ci, 
+                                  ymax = risk_preference + ci)) +
+                     geom_bar(stat="identity", alpha=0.7,position = position_dodge()) +
+                     geom_errorbar(position = position_dodge(0.9),
+                                   width=0.4, colour="black", alpha=0.9, size=1.0) +
+                     labs(x = "Number of Fish from Previous Choice", y = "Proportion of Risk Selections") +
+                     facet_wrap(~whale) +
+                     #scale_y_continuous(breaks=seq(0,70,10)) +
+                     theme_bw() +
+                      theme(panel.grid.major.x = element_blank(),
+                            panel.grid.minor.x = element_blank(),
+                            panel.grid.minor.y = element_blank())
+prev_choice_graph
+```
+
+
